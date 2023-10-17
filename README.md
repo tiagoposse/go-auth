@@ -1,6 +1,8 @@
-# go-jwt-session
+# go-auth
 
-Provides an implementation of a session controller that creates a JWT token to represent a session.
+Set of utilities to handle authorization in go. Included are:
+- A session controller, to create and validate sessions using jwt tokens
+- An authorization controller, that validates scopes against a set map
 
 ## Example
 
@@ -9,7 +11,7 @@ import (
   "context"
   "log"
 
-  sessions "github.com/tiagoposse/go-jwt-session"
+  sessions "github.com/tiagoposse/go-auth"
 )
 
 type SessionItems struct {

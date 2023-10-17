@@ -5,11 +5,9 @@ import (
 	"errors"
 	"time"
 
-	"github.com/golang-jwt/jwt/v4"
+	"github.com/golang-jwt/jwt/v5"
+	authz "github.com/tiagoposse/go-auth/authorization"
 )
-
-type Scopes []Scope
-type Scope string
 
 type SessionField struct {
 	Name      string
@@ -17,15 +15,22 @@ type SessionField struct {
 	Type      string
 }
 
+type ContextSessionKey struct {}
+
+type SessionInfo interface {}
+
 type Session struct {
 	jwt.RegisteredClaims
 
-	Scopes Scopes `json:"scopes"`
-	any
+	SessionInfo `json:",inline"`
 }
 
-func (s *Session) GetScopes() Scopes {
-	return s.Scopes
+func (Session) Name() string {
+	return "go-auth-session"
+}
+
+func (s Session) GetScopes() authz.Scopes {
+	return authz.Scopes{} 
 }
 
 type SessionsController struct {
@@ -40,7 +45,7 @@ func NewSessionsController(key string, expiration time.Duration) *SessionsContro
 	}
 }
 
-func (sc *SessionsController) CreateSessionToken(ctx context.Context, scopes Scopes, item any) (string, error) {
+func (sc *SessionsController) CreateSessionToken(ctx context.Context, info any) (string, error) {
 	expirationTime := time.Now().Add(sc.expirationTime).In(time.FixedZone("GMT", 0))
 
 	s := &Session{
@@ -48,8 +53,7 @@ func (sc *SessionsController) CreateSessionToken(ctx context.Context, scopes Sco
 			// In JWT, the expiry time is expressed as unix milliseconds
 			ExpiresAt: jwt.NewNumericDate(expirationTime),
 		},
-		Scopes: scopes,
-		any:    item,
+		SessionInfo:    info,
 	}
 
 	tokenString, err := jwt.NewWithClaims(jwt.SigningMethodHS256, s).SignedString([]byte(sc.secretKey))
@@ -57,7 +61,7 @@ func (sc *SessionsController) CreateSessionToken(ctx context.Context, scopes Sco
 	return tokenString, err
 }
 
-func (sc *SessionsController) ValidateSessionToken(ctx context.Context, token string) (*Session, error) {
+func (sc *SessionsController) ValidateSessionToken(ctx context.Context, token string) (authz.ScopedSession, error) {
 	session := &Session{}
 
 	tkn, err := jwt.ParseWithClaims(token, session, func(token *jwt.Token) (interface{}, error) {
